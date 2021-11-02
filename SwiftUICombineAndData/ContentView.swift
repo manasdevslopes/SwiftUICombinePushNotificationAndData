@@ -6,83 +6,96 @@
 //
 
 import SwiftUI
-import CoreData
 
 struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.colorScheme) var colorScheme: ColorScheme
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
-
+    @State private var contenctOffset = CGFloat(0)
+    
+    @State private var showCertificates: Bool = false
+    
     var body: some View {
         NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
-                    }
+            ZStack(alignment: .top) {
+                TrackableScrollView { offset in
+                    contenctOffset = offset.y
+                    print("contenctOffset: ----", contenctOffset)
+                } content: {
+                    content
                 }
-                .onDelete(perform: deleteItems)
+                
+                //                Color.red
+                VisualEffectBlur(blurStyle: .systemMaterial)
+                    .opacity(contenctOffset < -16 ? 1 : 0)
+                    .animation(.easeIn)
+                    .ignoresSafeArea()
+                    .frame(height: 0)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-            Text("Select an item")
+            .frame(maxHeight: .infinity, alignment: .top)
+            .background(AccountBackground())
+            .navigationBarHidden(true)
         }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .accentColor(colorScheme == .dark ? .white : Color(#colorLiteral(red: 0.2196078449, green: 0.007843137719, blue: 0.8549019694, alpha: 1)))
     }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+    
+    // ContentView.swift
+    var content: some View {
+        VStack {
+            ProfileRow()
+                .onTapGesture {
+                       showCertificates.toggle()
+                   }
+            
+            VStack {
+                NotificationsRow()
+                divider
+                
+                LiteModeRow()
             }
+            .blurBackground()
+            .padding(.top, 20)
+            
+            VStack {
+                NavigationLink(destination: FAQView()) {
+                    MenuRow()
+                }
+                divider
+                NavigationLink(destination: PackagesView()) {
+                    MenuRow(title: "SwiftUI Packages", leftIcon: "square.stack.3d.up.fill")
+                }
+                divider
+                Link(destination: URL(string: "https://www.youtube.com/channel/UCTIhfOopxukTIRkbXJ3kN-g")!) {
+                    MenuRow(title: "YouTube Channel", leftIcon: "play.rectangle.fill", rightIcon: "link")
+                }
+            }
+            .blurBackground()
+            .padding(.top, 20)
+            
+            Text("Version 1.00")
+                .foregroundColor(Color.white.opacity(0.7))
+                .padding(.top, 20)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 10)
+                .font(.footnote)
         }
+        .foregroundColor(Color.white)
+        .padding(.top, 20)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
+        .sheet(isPresented: $showCertificates, content: {
+                CertificatesView()
+        })
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
+    
+    
+    var divider: some View {
+        Divider().background(Color.white).blendMode(.overlay)
     }
 }
 
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
-
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        ContentView()
     }
 }
